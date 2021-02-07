@@ -1,0 +1,5 @@
+odoo14-addon-account-invoice-transmit-method @ git+https://github.com/phuctranerp/account-invoicing.git@14.0-mig-account_invoice_transmit_method#subdirectory=setup/account_invoice_transmit_method
+odoo14-addon-base-view-inheritance-extension @ git+https://github.com/akretion/server-tools.git@14-mig-base_view_inheritance_extension#subdirectory=setup/base_view_inheritance_extension
+
+# Python Dependencies
+PyYAML
