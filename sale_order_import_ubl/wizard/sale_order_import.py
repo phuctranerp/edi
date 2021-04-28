@@ -57,6 +57,29 @@ class SaleOrderImport(models.TransientModel):
         return res_line
 
     @api.model
+    def _get_order_commitment_date(self, delivery_node, ns):
+        latest_date = delivery_node.xpath("cbc:LatestDeliveryDate", namespaces=ns)
+        latest_time = delivery_node.xpath("cbc:LatestDeliveryTime", namespaces=ns)
+        if latest_date:
+            latest_delivery = latest_date[0].text
+            if latest_time:
+                latest_delivery += " " + latest_time[0].text[:-3]
+            return latest_delivery
+        return False
+
+    @api.model
+    def _prepare_order(self, parsed_order, price_source):
+        """
+        Add the commitment date for the create sale order if exists
+        """
+        so_vals = super(SaleOrderImport, self)._prepare_order(
+            parsed_order=parsed_order, price_source=price_source
+        )
+        if parsed_order.get("commitment_date"):
+            so_vals["commitment_date"] = parsed_order["commitment_date"]
+        return so_vals
+
+    @api.model
     def parse_ubl_sale_order(self, xml_root):
         ns = xml_root.nsmap
         main_xmlns = ns.pop(None)
@@ -111,10 +134,10 @@ class SaleOrderImport(models.TransientModel):
             company_dict = {"vat": company_dict_full["vat"]}
         delivery_xpath = xml_root.xpath("/%s/cac:Delivery" % root_name, namespaces=ns)
         shipping_dict = {}
-        delivery_dict = {}
+        commitment_date = False
         if delivery_xpath:
             shipping_dict = self.ubl_parse_delivery(delivery_xpath[0], ns)
-            delivery_dict = self.ubl_parse_delivery_details(delivery_xpath[0], ns)
+            commitment_date = self._get_order_commitment_date(delivery_xpath[0], ns)
         # In the demo UBL 2.1 file, they use 'IMCOTERM'... but I guess
         # it's a mistake and they should use 'INCOTERM'
         # So, for the moment, I ignore the attributes in the xpath for incoterm
@@ -151,7 +174,7 @@ class SaleOrderImport(models.TransientModel):
             "note": note_xpath and note_xpath[0].text or False,
             "lines": res_lines,
             "doc_type": doc_type,
-            "delivery_detail": delivery_dict,
+            "commitment_date": commitment_date,
         }
         # Stupid hack to remove invalid VAT of sample files
         if res["partner"]["vat"] in ["SE1234567801", "12356478", "DK12345678"]:
